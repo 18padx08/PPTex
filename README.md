@@ -21,3 +21,4 @@ Eichkurve fuer Piezo Kristall
 {% endfigure %}
 \end{document}
 ```
+This file was optimized for use with TeXworks on Mac OS X. For any other system please remove/adjust the sys.path according to where your files are.
