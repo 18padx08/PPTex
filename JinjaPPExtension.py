@@ -3,7 +3,7 @@ from os import sys
 import os
 import fcntl
 
-sys.path += ['', '//anaconda/lib/python27.zip', '//anaconda/lib/python2.7', '//anaconda/lib/python2.7/plat-darwin', '//anaconda/lib/python2.7/plat-mac', '//anaconda/lib/python2.7/plat-mac/lib-scriptpackages', '//anaconda/lib/python2.7/lib-tk', '//anaconda/lib/python2.7/lib-old', '//anaconda/lib/python2.7/lib-dynload', '//anaconda/lib/python2.7/site-packages', '//anaconda/lib/python2.7/site-packages/PIL', '//anaconda/lib/python2.7/site-packages/setuptools-2.1-py2.7.egg']
+sys.path += ['/usr/texbin','', '//anaconda/lib/python27.zip', '//anaconda/lib/python2.7', '//anaconda/lib/python2.7/plat-darwin', '//anaconda/lib/python2.7/plat-mac', '//anaconda/lib/python2.7/plat-mac/lib-scriptpackages', '//anaconda/lib/python2.7/lib-tk', '//anaconda/lib/python2.7/lib-old', '//anaconda/lib/python2.7/lib-dynload', '//anaconda/lib/python2.7/site-packages', '//anaconda/lib/python2.7/site-packages/PIL', '//anaconda/lib/python2.7/site-packages/setuptools-2.1-py2.7.egg']
 
 from jinja2 import nodes, contextfunction
 from jinja2.ext import Extension
@@ -17,7 +17,7 @@ import subprocess
 
 
 class PPExtension(Extension):
-    tags = set(['figure', 'table'])
+    tags = set(['figure', 'table', 'evaluate'])
     def __init(self, environment):
         super(PPExtension, self).__init__(environment)
         #add defaults
@@ -50,6 +50,10 @@ class PPExtension(Extension):
 
             #body = parser.parse_statements(['name:endtable'], drop_needle=True)
             return nodes.Output([self.call_method('_print_latex_table', arg)]) #nodes.CallBlock(self.call_method('_print_latex_table', arg),[], [], body) .set_lineno(linnum)
+        elif(lineno.value == 'evaluate'):
+            arg = [parser.parse_expression()]
+            return nodes.Output([self.call_method('_evaluate_function', arg)])
+
 
         #body = parser.parse_statements(['name:endfigure'], drop_needle=True)
         return nodes.Const(None)
@@ -115,10 +119,21 @@ class PPExtension(Extension):
     def calculateIntegral(val):
         return "the integral"
 
+#dictionary for evaluating functions
+#   variables - [] (use default values as initialization of data)
+#   function - str
+    def _evaluate_function(self, data):
+        funcstr = """\
+def evalFunc(""" + ",".join(data['variables']) +"""):
+    return {e}""".format(e=data['function'])
+        exec(funcstr)
+        return evalFunc()
 
 env = Environment(extensions=[PPExtension], loader=FileSystemLoader('.'))
 t = env.get_template(sys.argv[2])
 f = open(sys.argv[2] + "tmp", 'w')
 f.write(t.render())
-p = subprocess.Popen("xelatex " + " " + sys.argv[1] + " " + f.name , shell=True)
+cmdstr = "/usr/texbin/xelatex -interaction=nonstopmode " + sys.argv[1] + " " + f.name
+f.close()
+print subprocess.Popen( cmdstr, shell=True, stdout=subprocess.PIPE ).stdout.read()
 #os.system("open " + os.path.splitext(os.path.basename(sys.argv[1]))[0] + ".pdf")
