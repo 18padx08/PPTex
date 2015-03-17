@@ -54,17 +54,17 @@ class PPExtension(Extension):
         s = sympify(data['function'])
         l = latex(s)
         s = s.doit()
-        print(latex(s))
+        #print(latex(s))
         vals = []
         syms = []
         for symbol in data['symbols']:
             syms.append(Symbol(symbol['sym']))
             vals.append(symbol['val'])
-        print(syms, vals)
+        #print(syms, vals)
         my_function = lambdify(syms,s, 'numpy')
         result = my_function(*vals)
-        print(str(result))
-        print(l + " = " + str(result))
+        #print(str(result))
+        #print(l + " = " + str(result))
         return l + " = " + str(result)
 
 # dictionary with entries
@@ -73,18 +73,54 @@ class PPExtension(Extension):
 # xlabel
 # ylabel
     def _print_latex_table(self, data):
+        if 'extended' in data:
+            #we have in xdata an array and there is an array xheader and yheader (optional otherwise same as xheader) where xheader matches size of xdata and yheader matches size of one entry array of xdata
+            #at least one entry
+            ylen = len(data['xdata'][0])
+            #since len(xheader) and len (xdata) should match we take xheader
+            xlen = len(data['xheader'])
 
-        for tab in data['data']:
-            table = "\\begin{figure}\\centering\\begin{tabular}{|c|c|}"
-            i = 0
-            table += "\\hline\n"
-            table += data['xlabel'] + " & " + data['ylabel'] + "\\\\\n"
-            table += "\\hline\n"
-            for entry in tab['xdata']:
-                table += str(entry) + " & " + str(tab['ydata'][i]) + "\\\\\n"
+            #the xheader string (since latex builds tables per row)
+            yheader = data['yheader']
+            xheader = "&" if len(yheader) >0 else ""
+            #xheader += "&".join(data['xheader'])
+            isfirst = True
+            for h in data['xheader']:
+                if isfirst:
+                    xheader += "\\textbf{" + str(h) + "}"
+                    isfirst = False
+                else:
+                    xheader += "&\\textbf{" + str(h) + "}"
+            table = '\\begin{figure}\\centering\\begin{tabular}{' + 'c' * (xlen+ (1 if len(yheader) > 0 else 0)) +'}'
+            #table += "\\hline\n"
+            table += xheader + "\\\\\n\\cline{2-" + str(xlen+1) + "}"
+            print(ylen)
+            #now iterate over all rows, remember to print in the first row the yheader if there is one
+            for i in xrange(0, ylen):
+                if(len(yheader) > 0):
+                    table += "\\multicolumn{1}{r|}{\\textbf{" + str(data['yheader'][i]) + "}}"
+                for o in xrange(0,xlen):
+                    print("[",o, i,"]")
+                    if o == xlen-1:
+                        table += "&\multicolumn{1}{r|}{" + str(data['xdata'][o][i]) + "}"
+                    else:
+                        table += "&" + str(data['xdata'][o][i])
+                table += "\\\\\\cline{2-"  + str(xlen+1) + "}\n"
+
+            table += "\\end{tabular} \\caption{" + data['desc'] + "} \\end{figure}\n"
+            print (table)
+        else:
+            for tab in data['data']:
+                table = "\\begin{figure}\\centering\\begin{tabular}{|c|c|}"
+                i = 0
                 table += "\\hline\n"
-                i+=1
-            table += "\\end{tabular} \\caption{" + tab['desc'] + "} \\end{figure}\n"
+                table += str(data['xlabel']) + " & " + str(data['ylabel']) + "\\\\\n"
+                table += "\\hline\n"
+                for entry in tab['xdata']:
+                    table += str(entry) + " & " + str(tab['ydata'][i]) + "\\\\\n"
+                    table += "\\hline\n"
+                    i+=1
+                table += "\\end{tabular} \\caption{" + str(tab['desc']) + "} \\end{figure}\n"
         return table
 
 
