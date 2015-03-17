@@ -10,6 +10,7 @@ from jinja2.ext import Extension
 from jinja2 import Environment, FileSystemLoader
 import numpy as np
 import scipy as sp
+from sympy import Symbol, sympify, lambdify, latex
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plot
 import subprocess
@@ -17,7 +18,7 @@ import subprocess
 
 
 class PPExtension(Extension):
-    tags = set(['figure', 'table', 'evaluate'])
+    tags = set(['figure', 'table', 'evaluate', 'evaltex'])
     def __init(self, environment):
         super(PPExtension, self).__init__(environment)
         #add defaults
@@ -33,31 +34,38 @@ class PPExtension(Extension):
             #the figure data
             if (parser.stream.skip_if('comma')):
                 arg.append(parser.parse_expression())
-            #the x-axis legend
-        #    if(parser.stream.skip_if('comma')):
-        #        arg.append(parser.parse_expression())
-            #the y-axis legend
-        #    if(parser.stream.skip_if('comma')):
-        #        arg.append(parser.parse_expression())
-            #parse the body
             body = parser.parse_statements(['name:endfigure'], drop_needle=True)
-            #print(body)
-            #create the figure
             return nodes.CallBlock(self.call_method('_create_figure', arg),[], [], body).set_lineno(linnum)
         elif(lineno.value == 'table'):
-
             arg = [parser.parse_expression()]
-
-            #body = parser.parse_statements(['name:endtable'], drop_needle=True)
-            return nodes.Output([self.call_method('_print_latex_table', arg)]) #nodes.CallBlock(self.call_method('_print_latex_table', arg),[], [], body) .set_lineno(linnum)
+            return nodes.Output([self.call_method('_print_latex_table', arg)])
         elif(lineno.value == 'evaluate'):
             arg = [parser.parse_expression()]
             return nodes.Output([self.call_method('_evaluate_function', arg)])
+        elif(lineno.value == 'evaltex'):
+            arg = [parser.parse_expression()]
+            return nodes.Output([self.call_method('_evaltex_function', arg)])
 
 
         #body = parser.parse_statements(['name:endfigure'], drop_needle=True)
         return nodes.Const(None)
 
+    def _evaltex_function(self, data):
+        s = sympify(data['function'])
+        l = latex(s)
+        s = s.doit()
+        print(latex(s))
+        vals = []
+        syms = []
+        for symbol in data['symbols']:
+            syms.append(Symbol(symbol['sym']))
+            vals.append(symbol['val'])
+        print(syms, vals)
+        my_function = lambdify(syms,s, 'numpy')
+        result = my_function(*vals)
+        print(str(result))
+        print(l + " = " + str(result))
+        return l + " = " + str(result)
 
 # dictionary with entries
 # data
