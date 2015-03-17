@@ -1,7 +1,6 @@
 #!/usr/bin/python
 from os import sys
-import os
-import fcntl
+
 
 sys.path += ['/usr/texbin','', '//anaconda/lib/python27.zip', '//anaconda/lib/python2.7', '//anaconda/lib/python2.7/plat-darwin', '//anaconda/lib/python2.7/plat-mac', '//anaconda/lib/python2.7/plat-mac/lib-scriptpackages', '//anaconda/lib/python2.7/lib-tk', '//anaconda/lib/python2.7/lib-old', '//anaconda/lib/python2.7/lib-dynload', '//anaconda/lib/python2.7/site-packages', '//anaconda/lib/python2.7/site-packages/PIL', '//anaconda/lib/python2.7/site-packages/setuptools-2.1-py2.7.egg']
 
@@ -9,9 +8,7 @@ from jinja2 import nodes, contextfunction
 from jinja2.ext import Extension
 from jinja2 import Environment, FileSystemLoader
 import numpy as np
-import scipy as sp
 from sympy import Symbol, sympify, lambdify, latex
-from scipy.interpolate import interp1d
 import matplotlib.pyplot as plot
 import subprocess
 
