@@ -91,20 +91,28 @@ class PPExtension(Extension):
             table = '\\begin{figure}\\centering\\begin{tabular}{' + 'c' * (xlen+ (1 if len(yheader) > 0 else 0)) +'}'
             #table += "\\hline\n"
             table += xheader + "\\\\\n\\cline{2-" + str(xlen+1) + "}"
-            print(ylen)
+            
             #now iterate over all rows, remember to print in the first row the yheader if there is one
             for i in xrange(0, ylen):
                 if(len(yheader) > 0):
-                    table += "\\multicolumn{1}{r|}{\\textbf{" + str(data['yheader'][i]) + "}}"
+                    try:
+                        table += "\\multicolumn{1}{r|}{\\textbf{" + str(data['yheader'][i]) + "}}"
+                    except:
+                        if i > len(data['yheader'])-1:
+                            print("dimension of yheader is wrong")
+                        print("ooooops there is an error in yheader")
                 for o in xrange(0,xlen):
-                    print("[",o, i,"]")
-                    if o == xlen-1:
-                        table += "&\multicolumn{1}{r|}{" + str(data['xdata'][o][i]) + "}"
-                    else:
-                        table += "&" + str(data['xdata'][o][i])
+                    try:
+                        if o == xlen-1:
+                               table += "&\multicolumn{1}{r|}{" + str(data['xdata'][o][i]) + "}"
+                        else:
+                            #print(data['xdata'][o][i])
+                            table += "&" + str(data['xdata'][o][i])
+                    except:
+                        print("some error at: ", o, i)
+                #print(table)
                 table += "\\\\\\cline{2-"  + str(xlen+1) + "}\n"
-
-            table += "\\end{tabular} \\caption{" + data['desc'] + "} \\end{figure}\n"
+            table += "\\end{tabular} \\caption{" + str(data['desc']) + "} \\end{figure}\n"
             print (table)
         else:
             for tab in data['data']:
@@ -174,7 +182,7 @@ env = Environment(extensions=[PPExtension], loader=FileSystemLoader('.'))
 t = env.get_template(sys.argv[2])
 f = open(sys.argv[2] + "tmp", 'w')
 f.write(t.render())
-cmdstr = "/usr/texbin/xelatex -interaction=nonstopmode " + sys.argv[1] + " " + f.name
+cmdstr = "xelatex -interaction=nonstopmode " + sys.argv[1] + " " + f.name
 f.close()
 print subprocess.Popen( cmdstr, shell=True, stdout=subprocess.PIPE ).stdout.read()
 #os.system("open " + os.path.splitext(os.path.basename(sys.argv[1]))[0] + ".pdf")
