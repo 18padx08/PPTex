@@ -104,7 +104,7 @@ class PPExtension(Extension):
                 for o in xrange(0,xlen):
                     try:
                         if o == xlen-1:
-                               table += "&\multicolumn{1}{r|}{" + str(data['xdata'][o][i]) + "}"
+                               table += "&\multicolumn{1}{c|}{" + str(data['xdata'][o][i]) + "}"
                         else:
                             #print(data['xdata'][o][i])
                             table += "&" + str(data['xdata'][o][i])
