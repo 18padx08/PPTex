@@ -7,11 +7,14 @@ sys.path += ['/usr/texbin','', '//anaconda/lib/python27.zip', '//anaconda/lib/py
 from jinja2 import nodes, contextfunction
 from jinja2.ext import Extension
 from jinja2 import Environment, FileSystemLoader
+from jinja2.exceptions import TemplateSyntaxError
 import numpy as np
 from sympy import Symbol, sympify, lambdify, latex
 import matplotlib.pyplot as plot
 import subprocess
 
+class PPException(Exception):
+    pass
 
 
 class PPExtension(Extension):
@@ -48,21 +51,37 @@ class PPExtension(Extension):
         return nodes.Const(None)
 
     def _evaltex_function(self, data):
-        s = sympify(data['function'])
+        try:
+            s = sympify(data['function'])
+        except:
+            raise TemplateSyntaxError("could not parse formula", 100)
         l = latex(s)
         s = s.doit()
         #print(latex(s))
         vals = []
         syms = []
-        for symbol in data['symbols']:
-            syms.append(Symbol(symbol['sym']))
-            vals.append(symbol['val'])
+        try:
+            print(data['symbols'])
+            for symbol in data['symbols']:
+                print(symbol)
+                #print(symbol['sym'], symbol['val'])
+                syms.append(Symbol(symbol['sym']))
+                vals.append(symbol['val'])
+        except:
+            raise TemplateSyntaxError("something went wrong parsing symbols", 100)
         #print(syms, vals)
-        my_function = lambdify(syms,s, 'numpy')
-        result = my_function(*vals)
-        #print(str(result))
-        #print(l + " = " + str(result))
-        return l + " = " + str(result)
+        try:
+            my_function = lambdify(syms, s, 'numpy')
+            result = my_function(*vals)
+            #print(result)
+        except:
+            raise TemplateSyntaxError("could not evaluate formula")
+        try:
+            if 'supRes' in data:
+                return l
+            return l + " = " + str(result)
+        except:
+            raise TemplateSyntaxError("Malformed result...", 100)
 
 # dictionary with entries
 # data
@@ -101,6 +120,7 @@ class PPExtension(Extension):
                         if i > len(data['yheader'])-1:
                             print("dimension of yheader is wrong")
                         print("ooooops there is an error in yheader")
+                        raise TemplateSyntaxError("Yheader is wrong: probably inconsistencies in dimension", i)
                 for o in xrange(0,xlen):
                     try:
                         if o == xlen-1:
@@ -110,6 +130,8 @@ class PPExtension(Extension):
                             table += "&" + str(data['xdata'][o][i])
                     except:
                         print("some error at: ", o, i)
+                        raise TemplateSyntaxError("some error while parsing table data: ("+str(o)+","+str(i)+")" , o)
+                        #raise PPException("Error while parsing datapoints, probably missing an entry; check dimensions")
                 #print(table)
                 table += "\\\\\\cline{2-"  + str(xlen+1) + "}\n"
             table += "\\end{tabular} \\caption{" + str(data['desc']) + "} \\end{figure}\n"
@@ -164,9 +186,6 @@ class PPExtension(Extension):
         \\caption{"""+caller().strip()+u"""}
         \\end{figure}\n"""
         #return nodes.
-    @contextfunction
-    def calculateIntegral(val):
-        return "the integral"
 
 #dictionary for evaluating functions
 #   variables - [] (use default values as initialization of data)
