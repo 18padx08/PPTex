@@ -135,7 +135,7 @@ class PPExtension(Extension):
                 
                             Error is calculated according to standard error propagation:
                             \\begin{dmath} 
-                            s_{""" + (data['fname'] if 'fname' in data else "f") +"""} = """ + latex(error_terms) + """ = """ + str(uval.round(data['digits'] if 'digits' in data else 5)) + """
+                            s_{""" + (data['fname'] if 'fname' in data else "f") +"""} = """ + latex(error_terms) + """ = """ + str(error.round(data['digits'] if 'digits' in data else 5)) + """
                             \\end{dmath} 
                             with uncertainities: \\(""" + ",".join([latex(cert[0]) + ' = ' + cert[1]  for cert in uncerts])  +"""\\)
                            """
