@@ -10,8 +10,10 @@ from jinja2 import Environment, FileSystemLoader
 from jinja2.exceptions import TemplateSyntaxError
 import numpy as np
 from sympy import Symbol, sympify, lambdify, latex
+import sympy as sp
 import matplotlib.pyplot as plot
 import subprocess
+
 
 class PPException(Exception):
     pass
@@ -49,17 +51,26 @@ class PPExtension(Extension):
 
         #body = parser.parse_statements(['name:endfigure'], drop_needle=True)
         return nodes.Const(None)
+        
 
     def _evaltex_function(self, data):
         try:
             s = sympify(data['function'])
         except:
             raise TemplateSyntaxError("could not parse formula", 100)
-        l = latex(s)
-        s = s.doit()
+        try:
+            l = latex(s)
+            s = s.doit()
+        except:
+            raise TemplateSyntaxError("could either not make latex output or simpify", 1)
+        l2 = None
+        #errors is ignoring step
+        if 'step' in data:
+            l2 = latex(s)
         #print(latex(s))
         vals = []
         syms = []
+        indep = []
         try:
             print(data['symbols'])
             for symbol in data['symbols']:
@@ -67,18 +78,75 @@ class PPExtension(Extension):
                 #print(symbol['sym'], symbol['val'])
                 syms.append(Symbol(symbol['sym']))
                 vals.append(symbol['val'])
+                if 'indep' in symbol:
+                    indep.append([syms[-1], symbol['uncert'], vals[-1]])
         except:
             raise TemplateSyntaxError("something went wrong parsing symbols", 100)
         #print(syms, vals)
+        print(syms, vals, indep, s)
         try:
             my_function = lambdify(syms, s, 'numpy')
             result = my_function(*vals)
+            print("check if error is set", result)
+            if 'errors' in data:
+                #start looping through all variables in an extra arra
+                error_terms = 0
+                partial_terms = []
+                partial_terms_squared = []
+                uncerts = []
+                print(l + " = " + str(result))
+                try:
+                    for ind in indep:
+                        #loop through variables
+                        d = Symbol('s_' + ind[0].name)
+                        partial = sp.diff(s, ind[0]) * d/s
+                        partial_terms.append(partial)
+                        partial_terms_squared.append(partial**2)
+                        error_terms = error_terms + partial**2
+                        uncerts.append([d, str(ind[1])])
+                except:
+                    raise TemplateSyntaxError("error on building up error_terms", 15)
+                #make substitutions
+                print("begin substitution", error_terms)
+                error_terms = sp.sqrt(error_terms)
+                ptsv1 = []
+                try:
+                    for pt in partial_terms_squared:
+                        ptsv = pt
+                        print("substitution started" )
+                        for ind in indep:
+                            print(ind)
+                            try:
+                                ptsv = ptsv.subs(ind[0], ind[-1])
+                                ptsv = ptsv.subs('s_' + ind[0].name, ind[1])
+                            except:
+                                raise TemplateSyntaxError("Could not substitued", 100)
+                        ptsv1.append(ptsv)
+                except:
+                    raise TemplateSyntaxError("the substitution failed for error calculation", 10)
+                #error
+                uval = sp.sqrt(sum(ptsv1))
+                rresult = np.round(result, data['digits'] if 'digits' in data else 5)
+                print(rresult)
+                print(uval)
+                error = (uval * result).round(data['digits'] if 'digits' in data else 5)
+                print(rresult, error)
+                return """\\(""" + (data['fname'] if 'fname' in data else "f") + """ = """ + l + """ = """ + str(rresult) + """ \pm """ + str(error) + """\\)
+                
+                            Error is calculated according to standard error propagation:
+                            \\begin{dmath} 
+                            s_{""" + (data['fname'] if 'fname' in data else "f") +"""} = """ + latex(error_terms) + """ = """ + str(uval.round(data['digits'] if 'digits' in data else 5)) + """
+                            \\end{dmath} 
+                            with uncertainities: \\(""" + ",".join([latex(cert[0]) + ' = ' + cert[1]  for cert in uncerts])  +"""\\)
+                           """
             #print(result)
         except:
             raise TemplateSyntaxError("could not evaluate formula")
         try:
             if 'supRes' in data:
                 return l
+            elif 'step' in data:
+                return l + " = " + l2 + " = " + str(result)
             return l + " = " + str(result)
         except:
             raise TemplateSyntaxError("Malformed result...", 100)
@@ -97,7 +165,7 @@ class PPExtension(Extension):
             xlen = len(data['xheader'])
 
             #the xheader string (since latex builds tables per row)
-            yheader = data['yheader']
+            yheader = data['yheader'] if 'yheader' in data else []
             xheader = "&" if len(yheader) >0 else ""
             #xheader += "&".join(data['xheader'])
             isfirst = True
@@ -110,9 +178,10 @@ class PPExtension(Extension):
             table = '\\begin{figure}\\centering\\begin{tabular}{' + 'c' * (xlen+ (1 if len(yheader) > 0 else 0)) +'}'
             #table += "\\hline\n"
             table += xheader + "\\\\\n\\cline{2-" + str(xlen+1) + "}"
-            
+            #first = True
             #now iterate over all rows, remember to print in the first row the yheader if there is one
             for i in xrange(0, ylen):
+                first = True
                 if(len(yheader) > 0):
                     try:
                         table += "\\multicolumn{1}{r|}{\\textbf{" + str(data['yheader'][i]) + "}}"
@@ -123,11 +192,21 @@ class PPExtension(Extension):
                         raise TemplateSyntaxError("Yheader is wrong: probably inconsistencies in dimension", i)
                 for o in xrange(0,xlen):
                     try:
-                        if o == xlen-1:
-                               table += "&\multicolumn{1}{c|}{" + str(data['xdata'][o][i]) + "}"
+                        if len(yheader) >0:
+                            if o == xlen-1:
+                                   table += "&\multicolumn{1}{c|}{" + str(data['xdata'][o][i]) + "}"
+                            else:
+                                #print(data['xdata'][o][i])
+                                table += "&" + str(data['xdata'][o][i])
                         else:
-                            #print(data['xdata'][o][i])
-                            table += "&" + str(data['xdata'][o][i])
+                             if not first:
+                                 table += "&"
+                             first = False  
+                             if o == xlen-1:
+                                   table += "\multicolumn{1}{c|}{" + str(data['xdata'][o][i]) + "}"
+                             else:
+                                #print(data['xdata'][o][i])
+                                table += str(data['xdata'][o][i])
                     except:
                         print("some error at: ", o, i)
                         raise TemplateSyntaxError("some error while parsing table data: ("+str(o)+","+str(i)+")" , o)
@@ -183,7 +262,7 @@ class PPExtension(Extension):
         \\begin{figure}[ht!]
         \centering
         \includegraphics[width=\\textwidth]{""" + title.replace(" ","")  + """.png}
-        \\caption{"""+caller().strip()+u"""}
+        \\caption{"""+caller().strip()+u""" \\label{fig:""" + title + """}}
         \\end{figure}\n"""
         #return nodes.
 
