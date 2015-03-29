@@ -51,13 +51,13 @@ class PPExtension(Extension):
 
         #body = parser.parse_statements(['name:endfigure'], drop_needle=True)
         return nodes.Const(None)
-        
+
 
     def _evaltex_function(self, data):
         try:
             s = sympify(data['function'])
         except:
-            raise TemplateSyntaxError("could not parse formula", 100)
+            raise TemplateSyntaxError("could not parse formula", 01)
         try:
             l = latex(s)
             s = s.doit()
@@ -71,15 +71,19 @@ class PPExtension(Extension):
         vals = []
         syms = []
         indep = []
+        unindep = []
         try:
             print(data['symbols'])
             for symbol in data['symbols']:
                 print(symbol)
-                #print(symbol['sym'], symbol['val'])
+                print(symbol['sym'], symbol['val'])
                 syms.append(Symbol(symbol['sym']))
                 vals.append(symbol['val'])
+
                 if 'indep' in symbol:
                     indep.append([syms[-1], symbol['uncert'], vals[-1]])
+                else:
+                    unindep.append([syms[-1], vals[-1]])
         except:
             raise TemplateSyntaxError("something went wrong parsing symbols", 100)
         #print(syms, vals)
@@ -108,40 +112,49 @@ class PPExtension(Extension):
                     raise TemplateSyntaxError("error on building up error_terms", 15)
                 #make substitutions
                 print("begin substitution", error_terms)
+
                 error_terms = sp.sqrt(error_terms)
                 ptsv1 = []
                 try:
                     for pt in partial_terms_squared:
                         ptsv = pt
                         print("substitution started" )
+                        #substitue first all dependend variables
                         for ind in indep:
                             print(ind)
                             try:
                                 ptsv = ptsv.subs(ind[0], ind[-1])
                                 ptsv = ptsv.subs('s_' + ind[0].name, ind[1])
                             except:
-                                raise TemplateSyntaxError("Could not substitued", 100)
+                                raise TemplateSyntaxError("Could not substitued dependend var", 100)
+                        for unind in unindep:
+                            print(unind)
+                            try:
+                                ptsv = ptsv.subs(unind[0], unind[1])
+                            except:
+                                raise TemplateSyntaxError("Could not substitued undependend var", 100)
                         ptsv1.append(ptsv)
                 except:
                     raise TemplateSyntaxError("the substitution failed for error calculation", 10)
                 #error
+
                 uval = sp.sqrt(sum(ptsv1))
                 rresult = np.round(result, data['digits'] if 'digits' in data else 5)
                 print(rresult)
                 print(uval)
                 error = (uval * result).round(data['digits'] if 'digits' in data else 5)
                 print(rresult, error)
-                return """\\(""" + (data['fname'] if 'fname' in data else "f") + """ = """ + l + """ = """ + str(rresult) + """ \pm """ + str(error) + """\\)
-                
+                return """\\(""" + (data['fname'] if 'fname' in data else "f") + """ = """ + l + """ = """ + str(rresult) + """ \pm """ + str(abs(error)) + """\\)
+
                             Error is calculated according to standard error propagation:
-                            \\begin{dmath} 
-                            s_{""" + (data['fname'] if 'fname' in data else "f") +"""} = """ + latex(error_terms) + """ = """ + str(error.round(data['digits'] if 'digits' in data else 5)) + """
-                            \\end{dmath} 
+                            \\begin{dmath}
+                            s_{""" + (data['fname'] if 'fname' in data else "f") +"""} = """ + latex(error_terms) + """ = """ + str(abs(error.round(data['digits'] if 'digits' in data else 5))) + """
+                            \\end{dmath}
                             with uncertainities: \\(""" + ",".join([latex(cert[0]) + ' = ' + cert[1]  for cert in uncerts])  +"""\\)
                            """
             #print(result)
         except:
-            raise TemplateSyntaxError("could not evaluate formula")
+            raise TemplateSyntaxError("could not evaluate formula", 100)
         try:
             if 'supRes' in data:
                 return l
@@ -201,7 +214,7 @@ class PPExtension(Extension):
                         else:
                              if not first:
                                  table += "&"
-                             first = False  
+                             first = False
                              if o == xlen-1:
                                    table += "\multicolumn{1}{c|}{" + str(data['xdata'][o][i]) + "}"
                              else:
