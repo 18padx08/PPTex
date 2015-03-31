@@ -13,14 +13,14 @@ from sympy import Symbol, sympify, lambdify, latex
 import sympy as sp
 import matplotlib.pyplot as plot
 import subprocess
-
+import re
 
 class PPException(Exception):
     pass
 
 
 class PPExtension(Extension):
-    tags = set(['figure', 'table', 'evaluate', 'evaltex'])
+    tags = set(['figure', 'table', 'calcTable', 'evaluate', 'evaltex'])
     def __init(self, environment):
         super(PPExtension, self).__init__(environment)
         #add defaults
@@ -47,11 +47,99 @@ class PPExtension(Extension):
         elif(lineno.value == 'evaltex'):
             arg = [parser.parse_expression()]
             return nodes.Output([self.call_method('_evaltex_function', arg)])
+        elif( lineno.value == 'calcTable'):
+            arg = [parser.parse_expression()]
+            return nodes.Output([self.call_method('_calcTable_function', arg)])
 
 
         #body = parser.parse_statements(['name:endfigure'], drop_needle=True)
         return nodes.Const(None)
 
+    def _calcTable_function(self, data):
+        xheader = data['xheader']
+        yheader = data['yheader']
+        #build up the regex for formula $1,2$ means second row third column $(0:1,0:1)$ the rect (0,0) - (0,1) which yields an array with every entry putting them into an array with same dimension
+        #                                                                                        |         |
+        #                                                                                        (1,0) - (1,1)
+        #replace every placeholder with the value, putting 0 if the index is not valid
+        singleVal = re.compile('\$-?\d*,-?\d*\$')
+        table = np.array(data['table'])
+        print table
+        for row in range(np.shape(table)[0]):
+            print(row)
+            for column in range(np.shape(table)[1]):
+                entry = table[row,column]
+                value = 0
+                try:
+                    print(entry)
+                    value = float(entry)
+                except(ValueError):
+                    #is a placeholder?
+                    #check for single values
+                    temp = singleVal.finditer(entry)
+                    cor= 0
+                    if temp:
+                        for match in temp:
+                            tup = match.group().replace('$', '')
+                            print(tup)
+                            r,c = tup.split(',')
+                            r = row if int(r) < 0 else r
+                            c = column if int(c) < 0 else c
+                            print(r,c)
+                            entry = entry[0:match.start()-cor] + str(table[r,c]) + entry[match.end()-cor:]
+                            cor += len(match.group())
+                    value = eval(entry)
+                    print("value",value)
+                table[row,column] = value
+        datArr = {}
+        print('table construction completed')
+        datArr['extended'] = True
+        datArr['xheader'] = xheader
+        datArr['yheader'] = yheader
+        datArr['xdata'] = []
+        print('building up data array')
+        for c in range(np.shape(table)[1]):
+            print(c)
+            datArr['xdata'].append(table[:,c].tolist())
+        datArr['desc'] = data['desc']
+        figstr = ''
+        if 'figure' in data:
+            print( data['figure'])
+            for fig in data['figure']:
+                xrow = int(fig['xrow'])
+                yrow = int(fig['yrow'])
+                print(xrow, yrow)
+                xdata = table[:,xrow].astype(np.float)
+                ydata = table[:,yrow].astype(np.float)
+                print(xdata, ydata)
+                xmin = np.min(xdata)
+                print(xmin)
+                xmax = np.max(xdata)
+                ymin = np.min(ydata)
+                ymax = np.max(ydata)
+                print(xmin,xmax,ymin,ymax)
+                rang = [xmin, xmax, ymin, ymax]
+                print (rang)
+                title = fig['title']
+                desc = data['desc']
+                ylabel = fig['ylabel']
+                xlabel = fig['xlabel']
+                ref = fig['ref']
+                figureArray = {}
+                figureArray['xdata'] = xdata.tolist()
+                figureArray['ydata'] = ydata.tolist()
+                figureArray['title'] = title
+                figureArray['desc'] = desc 
+                figureArray['range'] = rang
+                if 'interpolate' in fig:
+                    figureArray['dim'] = fig['dim']
+                    figureArray['interpolate'] = fig['interpolate']
+                    if 'slope' in fig:
+                        figureArray['slope'] = fig['slope']
+                print('try creating figure')
+                figstr += self._create_figure(ref, {'data': [figureArray], 'ylabel':ylabel, 'xlabel':xlabel}, fig['caption'])
+        print('try printing the table')
+        return self._print_latex_table(datArr) + figstr
 
     def _evaltex_function(self, data):
         try:
@@ -175,6 +263,7 @@ class PPExtension(Extension):
         if 'extended' in data:
             #we have in xdata an array and there is an array xheader and yheader (optional otherwise same as xheader) where xheader matches size of xdata and yheader matches size of one entry array of xdata
             #at least one entry
+            print("latex print function", data)
             ylen = len(data['xdata'][0])
             #since len(xheader) and len (xdata) should match we take xheader
             xlen = len(data['xheader'])
@@ -211,7 +300,7 @@ class PPExtension(Extension):
                             if o == xlen-1:
                                    table += "&\multicolumn{1}{c|}{" + str(data['xdata'][o][i]) + "}"
                             else:
-                                #print(data['xdata'][o][i])
+                                print(data['xdata'][o][i])
                                 table += "&" + str(data['xdata'][o][i])
                         else:
                              if not first:
@@ -257,15 +346,21 @@ class PPExtension(Extension):
     def _create_figure(self, title, data, caller):
         plot.figure()
         print (data)
+        slopeinter = ''
         #foreach data set in data print a figure
         for fig in data['data']:
             if 'range' in fig:
                 plot.axis(fig['range'])
             if 'interpolate' in fig :
-                f  = np.polyfit(fig['xdata'],fig['ydata'], 1)
+                f  = np.polyfit(fig['xdata'],fig['ydata'], fig['dim'] if 'dim' in fig else 1)
+                print("slope-intercept",f[0])
+                
+                if 'slope' in fig:
+                    slopeinter = "y = "+str(f[0]) + " + " + str(f[1])
+                    #plot.annotate("y = " + f[0]+"*x + "+ f[1], xy=(1,1), xytext=(1,1.5), arrowprops=dict(facecolor='black', shrink=0.05),)
                 f_n = np.poly1d(f)
                 xnew = np.linspace(fig['range'][0], fig['range'][1], 10000)
-                plot.plot(xnew, f_n(xnew))
+                plot.plot(xnew, f_n(xnew), label = slopeinter)
             plot.plot(fig['xdata'], fig['ydata'], label=fig['title'], linestyle="solid", marker="s", markersize=7)
             plot.legend()
         plot.ylabel(data['ylabel'])
@@ -277,7 +372,7 @@ class PPExtension(Extension):
         \\begin{figure}[ht!]
         \centering
         \includegraphics[width=\\textwidth]{""" + title.replace(" ","")  + """.png}
-        \\caption{"""+caller().strip()+u""" \\label{fig:""" + title + """}}
+        \\caption{"""+(caller().strip() if type(caller) is not str else caller.strip())+u""" \\label{fig:""" + title + """}}
         \\end{figure}\n"""
         #return nodes.
 
