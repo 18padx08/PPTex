@@ -113,7 +113,7 @@ class PPExtension(Extension):
                 #make substitutions
                 print("begin substitution", error_terms)
 
-                error_terms = sp.sqrt(error_terms)
+                error_terms = error_terms**0.5
                 ptsv1 = []
                 try:
                     for pt in partial_terms_squared:
@@ -147,10 +147,12 @@ class PPExtension(Extension):
                 return """\\(""" + (data['fname'] if 'fname' in data else "f") + """ = """ + l + """ = """ + str(rresult) + """ \pm """ + str(abs(error)) + """\\)
 
                             Error is calculated according to standard error propagation:
+                            
                             \\begin{dmath}
                             s_{""" + (data['fname'] if 'fname' in data else "f") +"""} = """ + latex(error_terms) + """ = """ + str(abs(error.round(data['digits'] if 'digits' in data else 5))) + """
                             \\end{dmath}
                             with uncertainities: \\(""" + ",".join([latex(cert[0]) + ' = ' + cert[1]  for cert in uncerts])  +"""\\)
+                            
                            """
             #print(result)
         except:
