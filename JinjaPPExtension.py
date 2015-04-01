@@ -54,6 +54,41 @@ class PPExtension(Extension):
 
         #body = parser.parse_statements(['name:endfigure'], drop_needle=True)
         return nodes.Const(None)
+    
+    def _getValue(self, r,c,table, regExps):
+        try:
+            print("is it a value?")
+            return np.round(float(table[r,c]), 6)
+        except(ValueError):
+            print("no it's not")
+            #got string try parse it
+            #for reg in regExps:
+            val = self._parseValue(r,c,table[r,c],table, regExps)
+            if val is not None: return val
+            return 0
+    
+    def _parseValue(self, row, column, entry, table, regExps):
+        value = 0
+        print('sp lets try parse it')
+        for reg in regExps:
+            temp = reg.finditer(entry)
+            cor= 0
+            if temp:
+                for match in temp:
+                    tup = match.group().replace('$', '')
+                    print(tup)
+                    r,c = tup.split(',')
+                    r = row if int(r) < 0 else r
+                    c = column if int(c) < 0 else c
+                    print(r,c)
+                    tmpVal = str(self._getValue(r,c,table, regExps))
+                    entry = entry[0:match.start()-cor] + tmpVal + entry[match.end()-cor:]
+                    cor += len(match.group()) - len(tmpVal)
+        try:
+            value = eval(entry)
+        except(Exception):
+            return None
+        return np.round(value, 6)
 
     def _calcTable_function(self, data):
         xheader = data['xheader']
@@ -68,28 +103,11 @@ class PPExtension(Extension):
         for row in range(np.shape(table)[0]):
             print(row)
             for column in range(np.shape(table)[1]):
-                entry = table[row,column]
-                value = 0
-                try:
-                    print(entry)
-                    value = float(entry)
-                except(ValueError):
-                    #is a placeholder?
-                    #check for single values
-                    temp = singleVal.finditer(entry)
-                    cor= 0
-                    if temp:
-                        for match in temp:
-                            tup = match.group().replace('$', '')
-                            print(tup)
-                            r,c = tup.split(',')
-                            r = row if int(r) < 0 else r
-                            c = column if int(c) < 0 else c
-                            print(r,c)
-                            entry = entry[0:match.start()-cor] + str(table[r,c]) + entry[match.end()-cor:]
-                            cor += len(match.group())
-                    value = eval(entry)
-                    print("value",value)
+                print ("parse (",row,column,")")
+                blub = []
+                blub.append(singleVal)
+                value = self._getValue(row, column, table, blub)
+                print(value)
                 table[row,column] = value
         datArr = {}
         print('table construction completed')
