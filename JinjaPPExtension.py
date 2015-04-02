@@ -250,12 +250,12 @@ class PPExtension(Extension):
                 print(uval)
                 error = (uval * result).round(data['digits'] if 'digits' in data else 5)
                 print(rresult, error)
-                return """\\(""" + (data['fname'] if 'fname' in data else "f") + """ = """ + l + """ = """ + str(rresult) + """ \pm """ + str(abs(error)) + """\\)
+                return """\\(""" + (data['fname'] if 'fname' in data else "f") + """ = """ + l + """ = """ + str(rresult) + """ \pm """ + str(abs(error)) + (data['units'] if 'units' in data else "") + """\\)
 
                             Error is calculated according to standard error propagation:
                             
                             \\begin{dmath}
-                            s_{""" + (data['fname'] if 'fname' in data else "f") +"""} = """ + latex(error_terms) + """ = """ + str(abs(error.round(data['digits'] if 'digits' in data else 5))) + """
+                            s_{""" + (data['fname'] if 'fname' in data else "f") +"""} = """ + latex(error_terms) + """ = """ + str(abs(error.round(data['digits'] if 'digits' in data else 5))) +(data['units'] if 'units' in data else "" )+  """
                             \\end{dmath}
                             with uncertainities: \\(""" + ",".join([latex(cert[0]) + ' = ' + cert[1]  for cert in uncerts])  +"""\\)
                             
