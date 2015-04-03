@@ -56,7 +56,7 @@ figure needs two parameters. First the title of the graph (which is also used fo
         ], 'xlabel': 'string for the xlabel', 'ylabel' : 'stringfor ylabel on figure'}
 ```
 
-#### example
+##### example
 
 Each entry in the array will be one dataset, which is displayed in the same figure. Note currentyly it's only possible to have multiple datasets with the same x-axis and y-axis.
 
@@ -82,6 +82,34 @@ Set of points for a) Calibration function b) determination of absolute zero c) B
 ```
 
 #### evaluate [deprecated]
+Takes a formula as a input and evaluates the numerical value. You should porbably better use evaltex, since evaltex is able to do symbolic calculations, and it also outputs nice latex code. Evaluate is only here for compatibility reasons.
+The evaluate takes a python code as string, and a array of python default parameters and creates a function out of the string, which is then evaluated with exec.
+
+##### python code and parameters
+``` python
+	{
+	#dictionary for evaluating functions
+#   variables - [] (use default values as initialization of data)
+#   function - str
+    def _evaluate_function(self, data):
+        funcstr = """\
+def evalFunc(""" + ",".join(data['variables']) +"""):
+    return {e}""".format(e=data['function'])
+        exec(funcstr)
+        return evalFunc()
+	}
+	
+	
+	{
+	'function' : 'string', # string representing python code which should be evaluated
+	'variables': ['strings'] # array of strings in the form x=5
+	}
+```
+
+##### example
+```Tex
+	{% evaluate {'function' : 'x**2 * np.sqrt(y)', 'variables': ['x=2', 'y=3']} %}
+```
 
 #### evaltex
 
