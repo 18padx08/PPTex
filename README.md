@@ -113,6 +113,38 @@ def evalFunc(""" + ",".join(data['variables']) +"""):
 
 #### evaltex
 
+More sophisticated version of evaluate. This function is also possible of calculating the standard error propagation. It uses sympy for it's symbolic calculations, and so is the syntax choosen.
+
+##### parameters
+For the parameters we have a similiar syntax as evaluate. But now the math syntax in function is sympyic (which is more or less similiar to numpy). Fname is simply the thing written on the left side of the equation. Symbols is just an array containing all symbols, which also have a value as in evaluate. But now we can declare them as indep which needs a uncert value for the uncertainity in the observable or not (which coresponds to a constant which was not measured).
+
+If you want the error calculation, add 'errors':true and define with 'digits': 4 how many significants you want.
+If you put a units, you can declare the unit.
+
+*Note: The math enivronment uses dmath latex environment found in the breqn package -> don't forget to add \usepackage{breqn} (it also would be good to add all those math libs, as e.g. amsmath and mathtools). For the units I used the nice unitx package.*
+##### examples
+```Tex
+{%evaltex {
+		'function' : 'A**2/(pi * d**2 * (rho/2) *v_A**2)',
+		 'fname' : 'W_i',
+		 'symbols' : 
+			[{'sym' : 'A', 'val' : 14, 'indep' : True, 'uncert' : 0.5},
+			 {'sym' : 'd', 'val' : 0.12, 'indep' : True, 'uncert' : 0.005},
+			 {'sym' : 'rho', 'val':1.2},
+			 {'sym':'v_A', 'val' : 19.36, 'indep' : True, 'uncert' : 0.22}],
+			  'errors' : True, 'digits' : 4} 
+%}
+
+
+{%evaltex {'function' : 'm_z__1 * (t_m__1 - t_z__1)/(t_a__1 - t_m__1) - m_w__1', 'fname':'K_1', 
+	'symbols' : [{'sym' : 'm_z__1', 'val' : 0.189, 'indep' : True, 'uncert' : 0.0005 },
+	     {'sym' : 't_m__1', 'val':13.7, 'indep' :True, 'uncert' :0.05}, {'sym' : 't_z__1', 'val' : 0.3, 'indep' :True, 'uncert' : 0.05},
+	     {'sym' : 't_a__1', 'val' : 21.4, 'indep' : True, 'uncert' : 0.05}, {'sym' : 'm_w__1', 'val' : 0.381, 'indep' : True, 'uncert' : 0.0005} ],
+	'errors' : True,
+	'digits' : 4,
+	'units': '\\si{\\kilo\\gram}'}%}
+```
 #### table
+
 
 #### calcTable
