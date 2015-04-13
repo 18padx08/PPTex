@@ -56,6 +56,8 @@ class PPExtension(Extension):
         return nodes.Const(None)
     
     def _getValue(self, r,c,table, regExps):
+        table[r,c] = table[r,c].replace("??", str(c))
+        table[r,c] = table[r,c].replace("##", str(r))
         try:
             print("is it a value?")
             return np.round(float(table[r,c]), 6)
@@ -63,8 +65,6 @@ class PPExtension(Extension):
             print("no it's not")
             #got string try parse it
             #for reg in regExps:
-            table[r,c] = table[r,c].replace("??", c)
-            table[r,c] = table[r,c].replace("???", r)
             
             val = self._parseValue(r,c,table[r,c],table, regExps)
             if val is not None: return val
