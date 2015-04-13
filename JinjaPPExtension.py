@@ -63,6 +63,9 @@ class PPExtension(Extension):
             print("no it's not")
             #got string try parse it
             #for reg in regExps:
+            table[r,c] = table[r,c].replace("??", c)
+            table[r,c] = table[r,c].replace("???", r)
+            
             val = self._parseValue(r,c,table[r,c],table, regExps)
             if val is not None: return val
             return 0
