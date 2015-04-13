@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from os import sys
+from os import sys,getcwd
 
 
 sys.path += ['/usr/texbin','', '//anaconda/lib/python27.zip', '//anaconda/lib/python2.7', '//anaconda/lib/python2.7/plat-darwin', '//anaconda/lib/python2.7/plat-mac', '//anaconda/lib/python2.7/plat-mac/lib-scriptpackages', '//anaconda/lib/python2.7/lib-tk', '//anaconda/lib/python2.7/lib-old', '//anaconda/lib/python2.7/lib-dynload', '//anaconda/lib/python2.7/site-packages', '//anaconda/lib/python2.7/site-packages/PIL', '//anaconda/lib/python2.7/site-packages/setuptools-2.1-py2.7.egg']
@@ -405,10 +405,20 @@ def evalFunc(""" + ",".join(data['variables']) +"""):
         return evalFunc()
 
 env = Environment(extensions=[PPExtension], loader=FileSystemLoader('.'))
-t = env.get_template(sys.argv[2])
-f = open(sys.argv[2] + "tmp", 'w')
+t=None
+file=None
+if(len(sys.argv) >= 3): 
+    t = env.get_template(sys.argv[2])
+    file = sys.argv[2]
+elif(len(sys.argv) == 2):
+    t = env.get_template(sys.argv[1])
+    file = sys.argv[1]
+elif(len(sys.argv) <=1):
+    file = str(raw_input("Template File("+getcwd()+"): "))
+    t = env.get_template(file)
+f = open(file + "tmp", 'w')
 f.write(t.render())
-cmdstr = "xelatex -interaction=nonstopmode " + sys.argv[1] + " " + f.name
+cmdstr = "xelatex -interaction=nonstopmode " + (sys.argv[1] if len(sys.argv) >=3 else "") + " " + f.name
 f.close()
 print subprocess.Popen( cmdstr, shell=True, stdout=subprocess.PIPE ).stdout.read()
 #os.system("open " + os.path.splitext(os.path.basename(sys.argv[1]))[0] + ".pdf")
