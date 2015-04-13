@@ -59,7 +59,7 @@ class PPExtension(Extension):
         table[r,c] = table[r,c].replace("??", str(c))
         table[r,c] = table[r,c].replace("##", str(r))
         try:
-            print("is it a value?")
+            print("is it a value?", table[r,c])
             return np.round(float(table[r,c]), 6)
         except(ValueError):
             print("no it's not")
@@ -73,25 +73,31 @@ class PPExtension(Extension):
     def _parseValue(self, row, column, entry, table, regExps):
         value = 0
         print('sp lets try parse it')
-        for reg in regExps:
+        for reg,callBack in regExps:
             temp = reg.finditer(entry)
             cor= 0
             if temp:
                 for match in temp:
-                    tup = match.group().replace('$', '')
-                    print(tup)
-                    r,c = tup.split(',')
-                    r = row if int(r) < 0 else r
-                    c = column if int(c) < 0 else c
-                    print(r,c)
-                    tmpVal = str(self._getValue(r,c,table, regExps))
-                    entry = entry[0:match.start()-cor] + tmpVal + entry[match.end()-cor:]
-                    cor += len(match.group()) - len(tmpVal)
+                   result = callBack(row, column, entry, table, match, regExps, cor)
+                   cor += result[0]
+                   entry = result[1]
         try:
             value = eval(entry)
         except(Exception):
             return None
         return np.round(value, 6)
+
+    #callback function for regular expression single value
+    def SingleValFound(self, row, column, entry, table, match, regExps, cor):
+        tup = match.group().replace('$', '')
+        print(tup)
+        r,c = tup.split(',')
+        r = row if int(r) < 0 else r
+        c = column if int(c) < 0 else c
+        print(r,c)
+        tmpVal = str(self._getValue(r,c,table, regExps))
+        entry = entry[0:match.start()-cor] + tmpVal + entry[match.end()-cor:]
+        return [len(match.group()) - len(tmpVal), entry]
 
     def _calcTable_function(self, data):
         xheader = data['xheader']
@@ -108,7 +114,7 @@ class PPExtension(Extension):
             for column in range(np.shape(table)[1]):
                 print ("parse (",row,column,")")
                 blub = []
-                blub.append(singleVal)
+                blub.append([singleVal, self.SingleValFound])
                 value = self._getValue(row, column, table, blub)
                 print(value)
                 table[row,column] = value
