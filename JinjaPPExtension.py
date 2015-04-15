@@ -56,46 +56,54 @@ class PPExtension(Extension):
         return nodes.Const(None)
     
     def _getValue(self, r,c,table, regExps):
+        #print('begin getValue')
         table[r,c] = table[r,c].replace("??", str(c))
         table[r,c] = table[r,c].replace("##", str(r))
+        #print(table)
         try:
-            print("is it a value?", table[r,c])
+         #   print("is it a value?", table[r,c])
             return np.round(float(table[r,c]), 6)
         except(ValueError):
-            print("no it's not")
+        #    print("no it's not")
             #got string try parse it
             #for reg in regExps:
             
             val = self._parseValue(r,c,table[r,c],table, regExps)
+       #     print('finished parsing')
             if val is not None: return val
             return 0
     
     def _parseValue(self, row, column, entry, table, regExps):
         value = 0
-        print('sp lets try parse it')
+       # print('sp lets try parse it')
         for reg,callBack in regExps:
+           # print('before regex')
             temp = reg.finditer(entry)
+           # print('did regex match?')
             cor= 0
             if temp:
                 for match in temp:
+                #   print('try callback')
                    result = callBack(row, column, entry, table, match, regExps, cor)
+                #   print('I have some result')
                    cor += result[0]
                    entry = result[1]
         try:
             value = eval(entry)
         except(Exception):
             return None
-        return np.round(value, 6)
+        return np.round(value, 3)
 
     #callback function for regular expression single value
     def SingleValFound(self, row, column, entry, table, match, regExps, cor):
         tup = match.group().replace('$', '')
-        print(tup)
+        #print(tup)
         r,c = tup.split(',')
         r = row if int(r) < 0 else r
         c = column if int(c) < 0 else c
-        print(r,c)
+        #print(r,c)
         tmpVal = str(self._getValue(r,c,table, regExps))
+        #print('tmpVal', tmpVal)
         entry = entry[0:match.start()-cor] + tmpVal + entry[match.end()-cor:]
         return [len(match.group()) - len(tmpVal), entry]
 
@@ -108,45 +116,45 @@ class PPExtension(Extension):
         #replace every placeholder with the value, putting 0 if the index is not valid
         singleVal = re.compile('\$-?\d*,-?\d*\$')
         table = np.array(data['table'])
-        print table
+       # print table
         for row in range(np.shape(table)[0]):
-            print(row)
+           # print(row)
             for column in range(np.shape(table)[1]):
-                print ("parse (",row,column,")")
+               # print ("parse (",row,column,")")
                 blub = []
                 blub.append([singleVal, self.SingleValFound])
                 value = self._getValue(row, column, table, blub)
-                print(value)
+               # print(value)
                 table[row,column] = value
         datArr = {}
-        print('table construction completed')
+       # print('table construction completed')
         datArr['extended'] = True
         datArr['xheader'] = xheader
         datArr['yheader'] = yheader
         datArr['xdata'] = []
-        print('building up data array')
+       # print('building up data array')
         for c in range(np.shape(table)[1]):
-            print(c)
+            #print(c)
             datArr['xdata'].append(table[:,c].tolist())
         datArr['desc'] = data['desc']
         figstr = ''
         if 'figure' in data:
-            print( data['figure'])
+           # print( data['figure'])
             for fig in data['figure']:
                 xrow = int(fig['xrow'])
                 yrow = int(fig['yrow'])
                 print(xrow, yrow)
                 xdata = table[:,xrow].astype(np.float)
                 ydata = table[:,yrow].astype(np.float)
-                print(xdata, ydata)
+                #print(xdata, ydata)
                 xmin = np.min(xdata)
-                print(xmin)
+                #print(xmin)
                 xmax = np.max(xdata)
                 ymin = np.min(ydata)
                 ymax = np.max(ydata)
-                print(xmin,xmax,ymin,ymax)
+                #print(xmin,xmax,ymin,ymax)
                 rang = [xmin, xmax, ymin, ymax]
-                print (rang)
+               # print (rang)
                 title = fig['title']
                 desc = data['desc']
                 ylabel = fig['ylabel']
@@ -163,9 +171,9 @@ class PPExtension(Extension):
                     figureArray['interpolate'] = fig['interpolate']
                     if 'slope' in fig:
                         figureArray['slope'] = fig['slope']
-                print('try creating figure')
+               # print('try creating figure')
                 figstr += self._create_figure(ref, {'data': [figureArray], 'ylabel':ylabel, 'xlabel':xlabel}, fig['caption'])
-        print('try printing the table')
+       # print('try printing the table')
         return self._print_latex_table(datArr) + figstr
 
     def _evaltex_function(self, data):
@@ -188,10 +196,10 @@ class PPExtension(Extension):
         indep = []
         unindep = []
         try:
-            print(data['symbols'])
+           # print(data['symbols'])
             for symbol in data['symbols']:
-                print(symbol)
-                print(symbol['sym'], symbol['val'])
+            #    print(symbol)
+             #   print(symbol['sym'], symbol['val'])
                 syms.append(Symbol(symbol['sym']))
                 vals.append(symbol['val'])
 
@@ -202,18 +210,18 @@ class PPExtension(Extension):
         except:
             raise TemplateSyntaxError("something went wrong parsing symbols", 100)
         #print(syms, vals)
-        print(syms, vals, indep, s)
+       # print(syms, vals, indep, s)
         try:
             my_function = lambdify(syms, s, 'numpy')
             result = my_function(*vals)
-            print("check if error is set", result)
+            #print("check if error is set", result)
             if 'errors' in data:
                 #start looping through all variables in an extra arra
                 error_terms = 0
                 partial_terms = []
                 partial_terms_squared = []
                 uncerts = []
-                print(l + " = " + str(result))
+             #   print(l + " = " + str(result))
                 try:
                     for ind in indep:
                         #loop through variables
@@ -226,24 +234,24 @@ class PPExtension(Extension):
                 except:
                     raise TemplateSyntaxError("error on building up error_terms", 15)
                 #make substitutions
-                print("begin substitution", error_terms)
+              #  print("begin substitution", error_terms)
 
                 error_terms = error_terms**0.5
                 ptsv1 = []
                 try:
                     for pt in partial_terms_squared:
                         ptsv = pt
-                        print("substitution started" )
+               #         print("substitution started" )
                         #substitue first all dependend variables
                         for ind in indep:
-                            print(ind)
+                          #  print(ind)
                             try:
                                 ptsv = ptsv.subs(ind[0], ind[-1])
                                 ptsv = ptsv.subs('s_' + ind[0].name, ind[1])
                             except:
                                 raise TemplateSyntaxError("Could not substitued dependend var", 100)
                         for unind in unindep:
-                            print(unind)
+                          #  print(unind)
                             try:
                                 ptsv = ptsv.subs(unind[0], unind[1])
                             except:
@@ -255,10 +263,10 @@ class PPExtension(Extension):
 
                 uval = sp.sqrt(sum(ptsv1))
                 rresult = np.round(result, data['digits'] if 'digits' in data else 5)
-                print(rresult)
-                print(uval)
+                #print(rresult)
+                #print(uval)
                 error = (uval * result).round(data['digits'] if 'digits' in data else 5)
-                print(rresult, error)
+                #print(rresult, error)
                 return """\\(""" + (data['fname'] if 'fname' in data else "f") + """ = """ + l + """ = """ + str(rresult) + """ \pm """ + str(abs(error)) + (data['units'] if 'units' in data else "") + """\\)
 
                             Error is calculated according to standard error propagation:
@@ -290,7 +298,7 @@ class PPExtension(Extension):
         if 'extended' in data:
             #we have in xdata an array and there is an array xheader and yheader (optional otherwise same as xheader) where xheader matches size of xdata and yheader matches size of one entry array of xdata
             #at least one entry
-            print("latex print function", data)
+            #print("latex print function", data)
             ylen = len(data['xdata'][0])
             #since len(xheader) and len (xdata) should match we take xheader
             xlen = len(data['xheader'])
@@ -327,7 +335,7 @@ class PPExtension(Extension):
                             if o == xlen-1:
                                    table += "&\multicolumn{1}{c|}{" + str(data['xdata'][o][i]) + "}"
                             else:
-                                print(data['xdata'][o][i])
+             #                   print(data['xdata'][o][i])
                                 table += "&" + str(data['xdata'][o][i])
                         else:
                              if not first:
@@ -345,7 +353,7 @@ class PPExtension(Extension):
                 #print(table)
                 table += "\\\\\\cline{2-"  + str(xlen+1) + "}\n"
             table += "\\end{tabular} \\caption{" + str(data['desc']) + "} \\end{figure}\n"
-            print (table)
+            #print (table)
         else:
             for tab in data['data']:
                 table = "\\begin{figure}\\centering\\begin{tabular}{|c|c|}"
@@ -372,7 +380,7 @@ class PPExtension(Extension):
 
     def _create_figure(self, title, data, caller):
         plot.figure()
-        print (data)
+        #print (data)
         slopeinter = ''
         #foreach data set in data print a figure
         for fig in data['data']:
@@ -394,7 +402,7 @@ class PPExtension(Extension):
         plot.xlabel(data['xlabel'])
 
         file = plot.savefig(title.replace(" ","")+".png")
-        print file
+        #print file
         return u"""
         \\begin{figure}[ht!]
         \centering
