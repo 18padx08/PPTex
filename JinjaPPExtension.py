@@ -56,13 +56,13 @@ class PPExtension(Extension):
         return nodes.Const(None)
     
     def _getValue(self, r,c,table, regExps):
-        #print('begin getValue')
-        table[r,c] = table[r,c].replace("??", str(c))
-        table[r,c] = table[r,c].replace("##", str(r))
-        #print(table)
+        print('begin getValue')
+        table[r,c] = str(table[r,c]).replace("??", str(c))
+        table[r,c] = str(table[r,c]).replace("##", str(r))
+        print(table)
         try:
-         #   print("is it a value?", table[r,c])
-            return np.round(float(table[r,c]), 6)
+            print("is it a value?", table[r,c])
+            return np.round(float(table[r,c]), 3)
         except(ValueError):
         #    print("no it's not")
             #got string try parse it
@@ -75,7 +75,7 @@ class PPExtension(Extension):
     
     def _parseValue(self, row, column, entry, table, regExps):
         value = 0
-       # print('sp lets try parse it')
+        print('sp lets try parse it')
         for reg,callBack in regExps:
            # print('before regex')
             temp = reg.finditer(entry)
@@ -91,8 +91,9 @@ class PPExtension(Extension):
         try:
             value = eval(entry)
         except(Exception):
-            return None
-        return np.round(value, 3)
+            return str(entry)
+        if value is float: return np.round(value,3)
+        return str(value)
 
     #callback function for regular expression single value
     def SingleValFound(self, row, column, entry, table, match, regExps, cor):
@@ -116,23 +117,23 @@ class PPExtension(Extension):
         #replace every placeholder with the value, putting 0 if the index is not valid
         singleVal = re.compile('\$-?\d*,-?\d*\$')
         table = np.array(data['table'])
-       # print table
+        print table
         for row in range(np.shape(table)[0]):
-           # print(row)
+            print(row)
             for column in range(np.shape(table)[1]):
-               # print ("parse (",row,column,")")
+                print ("parse (",row,column,")")
                 blub = []
                 blub.append([singleVal, self.SingleValFound])
                 value = self._getValue(row, column, table, blub)
                # print(value)
                 table[row,column] = value
         datArr = {}
-       # print('table construction completed')
+        print('table construction completed')
         datArr['extended'] = True
         datArr['xheader'] = xheader
         datArr['yheader'] = yheader
         datArr['xdata'] = []
-       # print('building up data array')
+        print('building up data array')
         for c in range(np.shape(table)[1]):
             #print(c)
             datArr['xdata'].append(table[:,c].tolist())
