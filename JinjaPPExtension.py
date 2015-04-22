@@ -89,11 +89,12 @@ class PPExtension(Extension):
                    cor += result[0]
                    entry = result[1]
         try:
+            print(entry)
             value = eval(entry)
         except(Exception):
             return str(entry)
-        if value is float: return np.round(value,3)
-        return str(value)
+        return np.round(value,3)
+        #return str(value)
 
     #callback function for regular expression single value
     def SingleValFound(self, row, column, entry, table, match, regExps, cor):
@@ -139,12 +140,16 @@ class PPExtension(Extension):
             datArr['xdata'].append(table[:,c].tolist())
         datArr['desc'] = data['desc']
         figstr = ''
+        print('lets create a np array')
+        bigarray = []
+        print('lets go')
         if 'figure' in data:
-           # print( data['figure'])
+            print( data['figure'])
             for fig in data['figure']:
                 xrow = int(fig['xrow'])
                 yrow = int(fig['yrow'])
                 print(xrow, yrow)
+                print(table[:,xrow])
                 xdata = table[:,xrow].astype(np.float)
                 ydata = table[:,yrow].astype(np.float)
                 #print(xdata, ydata)
@@ -172,9 +177,28 @@ class PPExtension(Extension):
                     figureArray['interpolate'] = fig['interpolate']
                     if 'slope' in fig:
                         figureArray['slope'] = fig['slope']
-               # print('try creating figure')
-                figstr += self._create_figure(ref, {'data': [figureArray], 'ylabel':ylabel, 'xlabel':xlabel}, fig['caption'])
-       # print('try printing the table')
+                print('try creating figure', figureArray)
+
+                bigarray.append(figureArray)
+            indices = []
+            print(bigarray)
+            bigarray = np.array(bigarray)
+            print(bigarray)
+            if 'combineFigures' in data:
+                for group in data['combineFigures']:
+                    print('\n\n\n mygroup\n\n\n',bigarray[group])
+                    figstr += self._create_figure(ref, {'data': bigarray[group], 'ylabel':ylabel, 'xlabel':xlabel}, fig['caption'])
+                    indices = indices + group
+            loopcounter = 0
+            for f in bigarray:
+                if loopcounter in indices:
+                    print('already printed')
+                    loopcounter +=1
+                    continue
+                figstr += self._create_figure(ref, {'data': [f], 'ylabel':ylabel, 'xlabel':xlabel}, fig['caption'])
+                loopcounter +=1
+        print('try printing the table')
+        print(figstr)
         return self._print_latex_table(datArr) + figstr
 
     def _evaltex_function(self, data):
@@ -302,11 +326,11 @@ class PPExtension(Extension):
             #print("latex print function", data)
             ylen = len(data['xdata'][0])
             #since len(xheader) and len (xdata) should match we take xheader
-            xlen = len(data['xheader'])
-
+            xlen = len(data['xheader']) 
             #the xheader string (since latex builds tables per row)
             yheader = data['yheader'] if 'yheader' in data else []
             xheader = "&" if len(yheader) >0 else ""
+            print(data['xheader'], yheader)
             #xheader += "&".join(data['xheader'])
             isfirst = True
             for h in data['xheader']:
@@ -315,7 +339,7 @@ class PPExtension(Extension):
                     isfirst = False
                 else:
                     xheader += "&\\textbf{" + str(h) + "}"
-            table = '\\begin{figure}\\centering\\begin{tabular}{' + 'c' * (xlen+ (1 if len(yheader) > 0 else 0)) +'}'
+            table = '\\begin{table}\\centering\\begin{tabular}{' + 'c' * (xlen+ (1 if len(yheader) > 0 else 0)) +'}'
             #table += "\\hline\n"
             table += xheader + "\\\\\n\\cline{2-" + str(xlen+1) + "}"
             #first = True
@@ -336,7 +360,7 @@ class PPExtension(Extension):
                             if o == xlen-1:
                                    table += "&\multicolumn{1}{c|}{" + str(data['xdata'][o][i]) + "}"
                             else:
-             #                   print(data['xdata'][o][i])
+                                print(data['xdata'][o][i])
                                 table += "&" + str(data['xdata'][o][i])
                         else:
                              if not first:
@@ -353,7 +377,8 @@ class PPExtension(Extension):
                         #raise PPException("Error while parsing datapoints, probably missing an entry; check dimensions")
                 #print(table)
                 table += "\\\\\\cline{2-"  + str(xlen+1) + "}\n"
-            table += "\\end{tabular} \\caption{" + str(data['desc']) + "} \\end{figure}\n"
+            print(data['desc'])
+            table += "\\end{tabular} \\caption{" + str(data['desc']) + "} \\end{table}\n"
             #print (table)
         else:
             for tab in data['data']:
@@ -367,6 +392,7 @@ class PPExtension(Extension):
                     table += "\\hline\n"
                     i+=1
                 table += "\\end{tabular} \\caption{" + str(tab['desc']) + "} \\end{figure}\n"
+        print('oke returning')
         return table
 
 
@@ -381,11 +407,12 @@ class PPExtension(Extension):
 
     def _create_figure(self, title, data, caller):
         plot.figure()
-        #print (data)
+        print (data)
         slopeinter = ''
         #foreach data set in data print a figure
         for fig in data['data']:
-            if 'range' in fig:
+            print("datacount",len(data['data']))
+            if 'range' in fig and len(data['data']) <=1:
                 plot.axis(fig['range'])
             if 'interpolate' in fig :
                 f  = np.polyfit(fig['xdata'],fig['ydata'], fig['dim'] if 'dim' in fig else 1)
