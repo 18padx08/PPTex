@@ -134,6 +134,10 @@ class PPExtension(Extension):
         datArr['xheader'] = xheader
         datArr['yheader'] = yheader
         datArr['xdata'] = []
+        if 'group' in data:
+            datArr['group'] = data['group']
+            if 'startat' in data:
+                datArr['startat'] = data['startat']
         print('building up data array')
         for c in range(np.shape(table)[1]):
             #print(c)
@@ -146,39 +150,64 @@ class PPExtension(Extension):
         if 'figure' in data:
             print( data['figure'])
             for fig in data['figure']:
-                xrow = int(fig['xrow'])
-                yrow = int(fig['yrow'])
-                print(xrow, yrow)
-                print(table[:,xrow])
-                xdata = table[:,xrow].astype(np.float)
-                ydata = table[:,yrow].astype(np.float)
-                #print(xdata, ydata)
-                xmin = np.min(xdata)
-                #print(xmin)
-                xmax = np.max(xdata)
-                ymin = np.min(ydata)
-                ymax = np.max(ydata)
-                #print(xmin,xmax,ymin,ymax)
-                rang = [xmin, xmax, ymin, ymax]
-               # print (rang)
-                title = fig['title']
-                desc = data['desc']
-                ylabel = fig['ylabel']
-                xlabel = fig['xlabel']
-                ref = fig['ref']
-                figureArray = {}
-                figureArray['xdata'] = xdata.tolist()
-                figureArray['ydata'] = ydata.tolist()
-                figureArray['title'] = title
-                figureArray['desc'] = desc 
-                figureArray['range'] = rang
-                if 'interpolate' in fig:
-                    figureArray['dim'] = fig['dim']
-                    figureArray['interpolate'] = fig['interpolate']
-                    if 'slope' in fig:
-                        figureArray['slope'] = fig['slope']
-                print('try creating figure', figureArray)
-
+                if not 'function' in fig:
+                    xrow = int(fig['xrow'])
+                    yrow = int(fig['yrow'])
+                    print(xrow, yrow)
+                    print(table[:,xrow])
+                    xdata = table[:,xrow].astype(np.float)
+                    ydata = table[:,yrow].astype(np.float)
+                    #print(xdata, ydata)
+                    xmin = np.min(xdata)
+                    #print(xmin)
+                    xmax = np.max(xdata)
+                    ymin = np.min(ydata)
+                    ymax = np.max(ydata)
+                    #print(xmin,xmax,ymin,ymax)
+                    rang = [xmin, xmax, ymin, ymax]
+                   # print (rang)
+                    title = fig['title']
+                    desc = data['desc']
+                    ylabel = fig['ylabel']
+                    xlabel = fig['xlabel']
+                    ref = fig['ref']
+                    figureArray = {}
+                    figureArray['xdata'] = xdata.tolist()
+                    figureArray['ydata'] = ydata.tolist()
+                    figureArray['title'] = title
+                    figureArray['desc'] = desc 
+                    figureArray['range'] = rang
+                    if 'interpolate' in fig:
+                        figureArray['dim'] = fig['dim']
+                        figureArray['interpolate'] = fig['interpolate']
+                        if 'slope' in fig:
+                            figureArray['slope'] = fig['slope']
+                    print('try creating figure', figureArray)
+                else:
+                    title = fig['title']
+                    desc = data['desc']
+                    ylabel = fig['ylabel']
+                    xlabel = fig['xlabel']
+                    ref = fig['ref']
+                    xmin = fig['xmin']
+                    xmax = fig['xmax']
+                    try:
+                        
+                        f = sp.lambdify("x",sp.sympify(fig['function']),'numpy')
+                    except(Exception):
+                        raise TemplateSyntaxError("Could not parse function '" + fig['function'] + "'", 100);
+                    try:
+                        print(f)
+                        ymin = np.min(f(np.linspace(xmin,xmax,1000)))
+                        ymax = np.max(f(np.linspace(xmin,xmax,1000)))
+                        rang = [xmin, xmax, ymin, ymax]
+                    except(Exception):
+                        raise TemplateSyntaxError("Could not evaluate function", 100)
+                    figureArray = {}
+                    figureArray['title'] = title
+                    figureArray['desc'] = desc
+                    figureArray['range'] = rang
+                    figureArray['function'] = fig['function']
                 bigarray.append(figureArray)
             indices = []
             print(bigarray)
@@ -356,9 +385,17 @@ class PPExtension(Extension):
                         raise TemplateSyntaxError("Yheader is wrong: probably inconsistencies in dimension", i)
                 for o in xrange(0,xlen):
                     try:
+                        grouping = -1
+                        startat = 0
+                        if 'group' in data:
+                            grouping = data['group']
+                            if 'startat' in data:
+                                startat = data['startat']
                         if len(yheader) >0:
                             if o == xlen-1:
                                    table += "&\multicolumn{1}{c|}{" + str(data['xdata'][o][i]) + "}"
+                            elif grouping > 0 and (o - startat) % grouping == 0:
+                                table += "&\multicolumn{1}{|c}{" + str(data['xdata'][o][i]) + "}"
                             else:
                                 print(data['xdata'][o][i])
                                 table += "&" + str(data['xdata'][o][i])
@@ -410,6 +447,7 @@ class PPExtension(Extension):
         print (data)
         slopeinter = ''
         #foreach data set in data print a figure
+        i = 0;o=0; colors=["blue", "green", "#ffaca0"]
         for fig in data['data']:
             print("datacount",len(data['data']))
             if 'range' in fig and len(data['data']) <=1:
@@ -419,13 +457,37 @@ class PPExtension(Extension):
                 print("slope-intercept",f[0])
                 
                 if 'slope' in fig:
-                    slopeinter = "y = "+str(f[0]) + " + " + str(f[1])
+                    slopeinter = "y = "+str(np.round(f[0], 3)) + "x + " + str(np.round(f[1],3))
+                    
                     #plot.annotate("y = " + f[0]+"*x + "+ f[1], xy=(1,1), xytext=(1,1.5), arrowprops=dict(facecolor='black', shrink=0.05),)
                 f_n = np.poly1d(f)
                 xnew = np.linspace(fig['range'][0], fig['range'][1], 10000)
-                plot.plot(xnew, f_n(xnew), label = slopeinter)
-            plot.plot(fig['xdata'], fig['ydata'], label=fig['title'], linestyle="solid", marker="s", markersize=7)
+                plot.plot(xnew, f_n(xnew), label = slopeinter, color=colors[i % (len(colors))])
+                i += 1
+            if 'function' in fig:
+                try:
+                    f = sp.lambdify("x",sp.sympify(fig['function']), "numpy")
+                except(Exception):
+                    raise TemplateSyntaxError("Could not lambdify function in createFigure", 100)
+                print(f(2))
+                try:
+                    datArr = []
+                    xes = np.linspace(fig['range'][0], fig['range'][1], 1000)
+                    for x in xes:
+                        datArr += [f(x)]
+                        
+                    print(len(datArr), len(xes))
+                    if 'inverse' in fig:
+                        # plot.plot(datArr,xes, label=fig['title'], color=colors[o % (len(colors))])
+                        pass
+                    else:
+                        plot.plot(xes,datArr, label=fig['title'], color=colors[o % (len(colors))])
+                except(Exception):
+                    raise TemplateSyntaxError("Could not plot figure", 100)
+            else:
+                plot.plot(fig['xdata'], fig['ydata'], label=fig['title'], linestyle="none", color=colors[o % (len(colors))], marker="s", markersize=7)
             plot.legend()
+            o+=1
         plot.ylabel(data['ylabel'])
         plot.xlabel(data['xlabel'])
 
