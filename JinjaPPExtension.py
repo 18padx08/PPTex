@@ -163,6 +163,11 @@ class PPExtension(Extension):
                     xmax = np.max(xdata)
                     ymin = np.min(ydata)
                     ymax = np.max(ydata)
+                    if 'xmin' and 'xmax' and 'ymin' and 'ymax' in fig['range']:
+                        xmax = fig['range']['xmax']
+                        xmin = fig['range']['xmin']
+                        ymax = fig['range']['ymax']
+                        ymin = fig['range']['ymin']
                     #print(xmin,xmax,ymin,ymax)
                     rang = [xmin, xmax, ymin, ymax]
                    # print (rang)
@@ -224,7 +229,12 @@ class PPExtension(Extension):
                     print('already printed')
                     loopcounter +=1
                     continue
-                figstr += self._create_figure(ref, {'data': [f], 'ylabel':ylabel, 'xlabel':xlabel}, fig['caption'])
+                print("before function create figure", figstr)
+                try:
+                    figstr += self._create_figure(ref, {'data': [f], 'ylabel':ylabel, 'xlabel':xlabel}, fig['caption'])
+                except(Exception):
+                    raise TemplateSyntaxError("function call was invalid", 100)
+                print("I created a figure")
                 loopcounter +=1
         print('try printing the table')
         print(figstr)
@@ -443,8 +453,9 @@ class PPExtension(Extension):
 # xlabel
 
     def _create_figure(self, title, data, caller):
+        print("test")
         plot.figure()
-        print (data)
+        
         slopeinter = ''
         #foreach data set in data print a figure
         i = 0;o=0; colors=["blue", "green", "#ffaca0"]
