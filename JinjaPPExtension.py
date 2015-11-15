@@ -11,6 +11,8 @@ from jinja2.exceptions import TemplateSyntaxError
 import numpy as np
 from sympy import Symbol, sympify, lambdify, latex
 import sympy as sp
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plot
 import subprocess
 import re
