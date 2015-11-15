@@ -541,4 +541,6 @@ f.write(t.render())
 cmdstr = "xelatex -interaction=nonstopmode " + (sys.argv[1] if len(sys.argv) >=3 else "") + " " + f.name
 f.close()
 print subprocess.Popen( cmdstr, shell=True, stdout=subprocess.PIPE ).stdout.read()
+print subprocess.Popen( cmdstr, shell=True, stdout=subprocess.PIPE ).stdout.read()
+print subprocess.Popen( cmdstr, shell=True, stdout=subprocess.PIPE ).stdout.read()
 #os.system("open " + os.path.splitext(os.path.basename(sys.argv[1]))[0] + ".pdf")
